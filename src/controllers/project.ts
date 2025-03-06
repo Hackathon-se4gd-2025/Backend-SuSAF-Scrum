@@ -31,4 +31,13 @@ export class ProjectsController {
   async remove(@Param('id') id: string): Promise<void> {
     return this.projectsService.remove(id);
   }
+  @Get(':id/items')
+  async findItems(@Param('id') id: string) {
+    return this.projectsService.findItemsByProject(id);
+  }
+
+  @Get(':id/sprints')
+  async findSprints(@Param('id') id: string) {
+    return this.projectsService.findSprintsByProject(id);
+  }
 }

@@ -48,4 +48,38 @@ export class ProjectsService {
       throw new NotFoundException(`Project with ID ${id} not found`);
     }
   }
+// Fetch all items within a project
+async findItemsByProject(projectId: string) {
+    const project = await this.projectModel
+      .findById(projectId)
+      .populate({
+        path: 'items', // Populate the items array
+        model: 'Item'  // Ensure the model name matches the `Item` schema name
+      })
+      .exec();
+
+    if (!project) {
+      throw new NotFoundException(`Project with ID ${projectId} not found`);
+    }
+
+    return project.items; // Return only the items array
+  }
+  
+    // Fetch all sprints within a project
+    async findSprintsByProject(projectId: string) {
+        const project = await this.projectModel
+          .findById(projectId)
+          .populate({
+            
+            path: 'sprints', // Fetch full sprint details
+            model: 'Sprint'
+        })
+          .exec();
+    
+        if (!project) {
+          throw new NotFoundException(`Project with ID ${projectId} not found`);
+        }
+    
+        return project.sprints; // Return only the sprints array
+      }
 }
