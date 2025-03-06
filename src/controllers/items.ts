@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Put, Delete } from '@nestjs/common';
 import { ItemsService } from '../services/items';
 import { CreateItemDto, UpdateItemDto } from '../dtos/item';
-import { Item } from '../schemas/product-backlog-item';
+import { Item } from '../schemas/item';
 
 @Controller('items')
 export class ItemsController {
