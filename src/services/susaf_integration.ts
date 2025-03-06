@@ -43,7 +43,7 @@ export class IntegrationService {
             question: effect.question,
             capture_id: effect.capture_id,
             created_at: new Date(effect.created_at),
-            effects: effectDetails.map((detail) => detail._id),
+            effects: effectDetails.map((detail) => detail),
           });
         })
       );
