@@ -3,7 +3,7 @@ import { Document, Types } from 'mongoose';
 import { Sprint } from './sprint';
 import { Item } from './item';
 
-@Schema()
+@Schema({ timestamps: true })
 export class Project extends Document {
   @Prop({ required: true })
   name: string;

@@ -33,6 +33,7 @@ export class SprintsService {
     const updatedSprint = await this.sprintModel.findByIdAndUpdate(id, updateSprintDto, {
       new: true,
       runValidators: true,
+      timestamps: true,
     }).populate('items');
 
     if (!updatedSprint) {

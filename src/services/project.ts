@@ -33,6 +33,7 @@ export class ProjectsService {
     const updatedProject = await this.projectModel.findByIdAndUpdate(id, updateProjectDto, {
       new: true,
       runValidators: true,
+      timestamps: true,
     }).populate('sprints items');
 
     if (!updatedProject) {

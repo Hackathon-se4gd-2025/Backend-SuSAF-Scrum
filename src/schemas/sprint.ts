@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 import { Item } from './item'; // Assuming you already have Item schema
 import { Types } from 'mongoose';
 
-@Schema()
+@Schema({ timestamps: true })
 export class Sprint extends Document {
   @Prop({ required: true })
   name: string;

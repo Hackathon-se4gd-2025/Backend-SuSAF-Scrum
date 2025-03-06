@@ -33,6 +33,7 @@ export class ItemsService {
     const updatedItem = await this.itemModel.findByIdAndUpdate(id, updateItemDto, {
       new: true, // Return the updated document
       runValidators: true,
+      timestamps: true,
     });
 
     if (!updatedItem) {

@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-@Schema()
+@Schema({ timestamps: true })
 export class Backlog extends Document {
   @Prop({ required: true })
   name: string;
@@ -12,7 +12,7 @@ export class Backlog extends Document {
 
 export const BacklogSchema = SchemaFactory.createForClass(Backlog);
 
-@Schema()
+@Schema({ timestamps: true })
 export class Item extends Document {
   @Prop({ required: true })
   title: string;
