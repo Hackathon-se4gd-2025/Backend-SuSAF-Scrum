@@ -5,6 +5,7 @@ import { IntegrationService } from '../services/susaf_integration';
 import { IntegrationController } from '../controllers/susaf_integration';
 import { SustainabilityEffect, SustainabilityEffectSchema, EffectDetail, EffectDetailSchema } from '../schemas/sustainability';
 import { Recommendation, RecommendationSchema } from '../schemas/sustainability';
+import { Item, ItemSchema } from '../schemas/item'; // ✅ Import ItemSchema
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { Recommendation, RecommendationSchema } from '../schemas/sustainability'
       { name: SustainabilityEffect.name, schema: SustainabilityEffectSchema },
       { name: EffectDetail.name, schema: EffectDetailSchema },
       { name: Recommendation.name, schema: RecommendationSchema },
+      { name: Item.name, schema: ItemSchema }, // ✅ Register ItemModel here
     ]),
   ],
   controllers: [IntegrationController],

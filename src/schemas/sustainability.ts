@@ -1,8 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-@Schema({ timestamps: true }) // ✅ Adds `createdAt` and `updatedAt`
+@Schema({ timestamps: true })
 export class EffectDetail extends Document {
+  @Prop({ required: true })
+  external_id: number; // ✅ Store the external API ID
+
   @Prop({ required: true })
   description: string;
 
@@ -22,16 +25,25 @@ export class EffectDetail extends Document {
   dimension_name: string;
 
   @Prop({ required: true })
+  dimension_id: number;
+
+  @Prop({ required: true })
   added_by_username: string;
 
   @Prop({ required: true })
   added_by_email: string;
+
+  @Prop({ type: String, default: null })
+  related_feature?: string;
 }
 
 export const EffectDetailSchema = SchemaFactory.createForClass(EffectDetail);
 
 @Schema({ timestamps: true })
 export class SustainabilityEffect extends Document {
+  @Prop({ required: true })
+  external_id: number; // ✅ Store the external API ID
+
   @Prop({ required: true })
   name: string;
 
@@ -40,9 +52,6 @@ export class SustainabilityEffect extends Document {
 
   @Prop({ required: true })
   capture_id: number;
-
-  @Prop({ required: true })
-  created_at: Date;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'EffectDetail' }] })
   effects: Types.ObjectId[];
