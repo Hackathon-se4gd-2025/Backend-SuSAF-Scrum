@@ -23,7 +23,8 @@ export class IntegrationService {
     @InjectModel(SustainabilityEffect.name) private readonly effectModel: Model<SustainabilityEffect>,
     @InjectModel(EffectDetail.name) private readonly effectDetailModel: Model<EffectDetail>,
     @InjectModel(Recommendation.name) private readonly recommendationModel: Model<Recommendation>,
-    @InjectModel(Item.name) private readonly itemModel: Model<Item>
+    @InjectModel(Item.name) private readonly itemModel: Model<Item>,
+    @InjectModel('Project') private readonly projectModel: Model<any>
   ) {
     this.openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY, // ✅ Ensure API key is correctly set
@@ -32,58 +33,121 @@ export class IntegrationService {
 
   async generateItemsFromRecommendations(): Promise<any> {
     try {
-      // Fetch stored recommendations from the database
-      const recommendations = await this.recommendationModel.find();
-      if (!recommendations.length) {
-        throw new Error('No recommendations found in the database.');
+        this.logger.log('HERE 2');
+
+        // Fetch stored recommendations from the database
+        const recommendations = await this.recommendationModel.find();
+        this.logger.log('HERE 1');
+
+        if (!recommendations.length) {
+            throw new Error('No recommendations found in the database.');
+        }
+        this.logger.log('HERE 3');
+
+        //this.logger.log('HERE 3', recommendations);
+
+
+        // Extract recommendation texts
+        const recommendationTexts = recommendations.map(rec => Object.values(rec.recommendations)).flat();
+        
+        this.logger.log('HERE ');
+
+        const completion = await this.openai.chat.completions.create({
+            model: "gpt-4o-2024-08-06",
+            messages: [
+                {
+                    role: "user",
+                    content: `Based on the following sustainability recommendations, generate structured backlog items.
+                    
+                    Recommendations:
+                    ${recommendationTexts.map((rec, index) => `${index + 1}. ${rec}`).join('\n')}
+                    
+                    Each backlog item should have:
+                    - A title
+                    - A short description
+                    - A priority level (low, medium, high)
+                    - Tags related to sustainability (list of relevant keywords)
+                    
+                    Return the output as a JSON array of objects.`
+                }
+            ],
+            response_format: {
+                type: "json_schema",
+                json_schema: {
+                    "name": "ProductItems",
+                    "strict": true,
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                                "title": { "type": "string" },
+                                "description": { "type": "string" },
+                                "priority": { "type": "number" },
+                                "storyPoints": { "type": "number" },
+                                "sustainabilityPoints": { "type": "number" },
+                                "acceptanceCriteria": { "type": "string" },
+
+                            },
+                            "required": ["title", "description", "priority", "storyPoints", "sustainabilityPoints", "acceptanceCriteria"],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": ["items"],
+                      "additionalProperties": false
+                    }
+                  },
+            },
+            temperature: 0.7
+        });
+
+
+        this.logger.log('OpenAI Response:', completion);
+
+
+      if (!completion.choices[0].message.content) {
+          throw new Error('No content received from OpenAI');
       }
+      const responseContent = JSON.parse(completion.choices[0].message.content);
 
-      // Extract recommendation texts
-      const recommendationTexts = recommendations.flatMap(rec => Object.values(rec.recommendations));
+     // Transform the response into the item structure and save to the database
+     const items = await this.itemModel.insertMany(
+      responseContent.items.map(item => ({
+          title: item.title,
+          description: item.description,
+          priority: item.priority,
+          sustainability: true, // Assuming all items are sustainability-related
+          storyPoints: item.storyPoints,
+          sustainabilityPoints: item.sustainabilityPoints,
+          status: 'new', // Default status
+          acceptanceCriteria: item.acceptanceCriteria,
+          tags: [], // Assuming no tags provided in the response
+          effects: [], // Assuming no effects provided in the response
+          sprint: null, // Assuming no sprint provided in the response
+          responsible: null // Assuming no responsible person provided in the response
+      }))
+  );
 
-      // ✅ OpenAI API Request
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o", // ✅ Use the latest model
-        messages: [
-          {
-            role: "user",
-            content: `Based on the following sustainability recommendations, generate structured backlog items.
-
-            Recommendations:
-            ${recommendationTexts.map((rec, index) => `${index + 1}. ${rec}`).join('\n')}
-
-            Each backlog item should have:
-            - A title
-            - A short description
-            - A priority level (low, medium, high)
-            - Tags related to sustainability (list of relevant keywords)
-
-            Return the output as a JSON array of objects, like this:
-            [
-              { "title": "Item Title", "description": "Short Description", "priority": "high", "tags": ["tag1", "tag2"] },
-              ...
-            ]`
-          }
-        ],
-        temperature: 0.7
-      });
-
-      // ✅ Extract and parse the AI response
-      const content = completion.choices[0].message.content;
-      if (!content) {
-        throw new Error('No content received from OpenAI');
-      }
-      const generatedItems = JSON.parse(content);
-
-      // ✅ Store generated items in the database
-      const savedItems = await this.itemModel.insertMany(generatedItems);
-
-      return { message: 'Generated items successfully', items: savedItems };
-    } catch (error) {
-      this.logger.error(`Error generating items from recommendations: ${error.message}`);
-      throw new Error(`Failed to generate items: ${error.message}`);
-    }
+  // Get the project and add the items to the items list
+  const project = await this.projectModel.findById('67caee2997888f7aaa39ef64');
+  if (!project) {
+      throw new Error('Project not found');
   }
+
+  project.items.push(...items.map(item => item._id));
+  await project.save();
+
+  return { message: 'Items generated and saved successfully', items };
+
+    } catch (error) {
+        this.logger.error(`TEST ERROR: ${error.message}`);
+        throw new Error(`TEST ERROR1: ${error.message}`);
+    }
+}
 
   async fetchAndStoreSustainabilityEffects(): Promise<any> {
     try {

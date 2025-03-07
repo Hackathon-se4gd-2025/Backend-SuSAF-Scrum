@@ -22,4 +22,12 @@ export class IntegrationController {
   async fetchRecommendations() {
     return this.integrationService.fetchAndStoreRecommendations();
   }
+
+  /**
+   * Generate backlog items from AI based on recommendations
+   */
+  @Post('generate-items')
+  async generateItemsFromRecommendations() {
+    return this.integrationService.generateItemsFromRecommendations();
+  }
 }
