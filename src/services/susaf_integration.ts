@@ -23,8 +23,7 @@ export class IntegrationService {
     @InjectModel(SustainabilityEffect.name) private readonly effectModel: Model<SustainabilityEffect>,
     @InjectModel(EffectDetail.name) private readonly effectDetailModel: Model<EffectDetail>,
     @InjectModel(Recommendation.name) private readonly recommendationModel: Model<Recommendation>,
-    @InjectModel(Item.name) private readonly itemModel: Model<Item>,
-    @InjectModel('Project') private readonly projectModel: Model<any>
+    @InjectModel(Item.name) private readonly itemModel: Model<Item>
   ) {
     this.openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY, // ✅ Ensure API key is correctly set
@@ -114,34 +113,25 @@ export class IntegrationService {
       }
       const responseContent = JSON.parse(completion.choices[0].message.content);
 
-     // Transform the response into the item structure and save to the database
-     const items = await this.itemModel.insertMany(
-      responseContent.items.map(item => ({
+      // Transform the response into the item structure and save to the database
+      const items = responseContent.items.map(item => ({
           title: item.title,
           description: item.description,
           priority: item.priority,
           sustainability: true, // Assuming all items are sustainability-related
           storyPoints: item.storyPoints,
           sustainabilityPoints: item.sustainabilityPoints,
-          status: 'new', // Default status
+          status: 'AI generated', // Default status
           acceptanceCriteria: item.acceptanceCriteria,
           tags: [], // Assuming no tags provided in the response
           effects: [], // Assuming no effects provided in the response
           sprint: null, // Assuming no sprint provided in the response
           responsible: null // Assuming no responsible person provided in the response
-      }))
-  );
+      }));
 
-  // Get the project and add the items to the items list
-  const project = await this.projectModel.findById('67caee2997888f7aaa39ef64');
-  if (!project) {
-      throw new Error('Project not found');
-  }
+      await this.itemModel.insertMany(items);
 
-  project.items.push(...items.map(item => item._id));
-  await project.save();
-
-  return { message: 'Items generated and saved successfully', items };
+      return { message: 'Items generated and saved successfully', items };
 
     } catch (error) {
         this.logger.error(`TEST ERROR: ${error.message}`);
