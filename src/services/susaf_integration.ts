@@ -7,7 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import * as dotenv from 'dotenv';
 import {OpenAI } from 'openai';
 import { Item } from '../schemas/item';
-
+import { Project } from '../schemas/project';
 
 dotenv.config(); // ✅ Load environment variables from .env
 
@@ -23,7 +23,8 @@ export class IntegrationService {
     @InjectModel(SustainabilityEffect.name) private readonly effectModel: Model<SustainabilityEffect>,
     @InjectModel(EffectDetail.name) private readonly effectDetailModel: Model<EffectDetail>,
     @InjectModel(Recommendation.name) private readonly recommendationModel: Model<Recommendation>,
-    @InjectModel(Item.name) private readonly itemModel: Model<Item>
+    @InjectModel(Item.name) private readonly itemModel: Model<Item>,
+    @InjectModel(Project.name) private readonly projectModel: Model<Project> // Add this line
   ) {
     this.openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY, // ✅ Ensure API key is correctly set
@@ -32,24 +33,17 @@ export class IntegrationService {
 
   async generateItemsFromRecommendations(): Promise<any> {
     try {
-        this.logger.log('HERE 2');
+        this.logger.log('Fetching recommendations from the database');
 
         // Fetch stored recommendations from the database
         const recommendations = await this.recommendationModel.find();
-        this.logger.log('HERE 1');
 
         if (!recommendations.length) {
             throw new Error('No recommendations found in the database.');
         }
-        this.logger.log('HERE 3');
-
-        //this.logger.log('HERE 3', recommendations);
-
 
         // Extract recommendation texts
         const recommendationTexts = recommendations.map(rec => Object.values(rec.recommendations)).flat();
-        
-        this.logger.log('HERE ');
 
         const completion = await this.openai.chat.completions.create({
             model: "gpt-4o-2024-08-06",
@@ -89,7 +83,6 @@ export class IntegrationService {
                                 "storyPoints": { "type": "number" },
                                 "sustainabilityPoints": { "type": "number" },
                                 "acceptanceCriteria": { "type": "string" },
-
                             },
                             "required": ["title", "description", "priority", "storyPoints", "sustainabilityPoints", "acceptanceCriteria"],
                             "additionalProperties": false
@@ -104,38 +97,45 @@ export class IntegrationService {
             temperature: 0.7
         });
 
-
         this.logger.log('OpenAI Response:', completion);
 
+        if (!completion.choices[0].message.content) {
+            throw new Error('No content received from OpenAI');
+        }
+        const responseContent = JSON.parse(completion.choices[0].message.content);
 
-      if (!completion.choices[0].message.content) {
-          throw new Error('No content received from OpenAI');
-      }
-      const responseContent = JSON.parse(completion.choices[0].message.content);
+        // Transform the response into the item structure and save to the database
+        const items = await this.itemModel.insertMany(
+            responseContent.items.map(item => ({
+                title: item.title,
+                description: item.description,
+                priority: item.priority,
+                sustainability: true, // Assuming all items are sustainability-related
+                storyPoints: item.storyPoints,
+                sustainabilityPoints: item.sustainabilityPoints,
+                status: 'new', // Default status
+                acceptanceCriteria: item.acceptanceCriteria,
+                tags: [], // Assuming no tags provided in the response
+                effects: [], // Assuming no effects provided in the response
+                sprint: null, // Assuming no sprint provided in the response
+                responsible: null // Assuming no responsible person provided in the response
+            }))
+        );
 
-      // Transform the response into the item structure and save to the database
-      const items = responseContent.items.map(item => ({
-          title: item.title,
-          description: item.description,
-          priority: item.priority,
-          sustainability: true, // Assuming all items are sustainability-related
-          storyPoints: item.storyPoints,
-          sustainabilityPoints: item.sustainabilityPoints,
-          status: 'AI generated', // Default status
-          acceptanceCriteria: item.acceptanceCriteria,
-          tags: [], // Assuming no tags provided in the response
-          effects: [], // Assuming no effects provided in the response
-          sprint: null, // Assuming no sprint provided in the response
-          responsible: null // Assuming no responsible person provided in the response
-      }));
+        // Get the project and add the items to the items list
+        const project = await this.projectModel.findById('67caee2997888f7aaa39ef64');
+        if (!project) {
+            throw new Error('Project not found');
+        }
 
-      await this.itemModel.insertMany(items);
+        project.items.push(...items.map(item => item._id));
+        await project.save();
 
-      return { message: 'Items generated and saved successfully', items };
+        return { message: 'Items generated and saved successfully', items };
 
     } catch (error) {
-        this.logger.error(`TEST ERROR: ${error.message}`);
-        throw new Error(`TEST ERROR1: ${error.message}`);
+        this.logger.error(`Error generating items from recommendations: ${error.message}`);
+        throw new Error(`Failed to generate items from recommendations: ${error.message}`);
     }
 }
 
